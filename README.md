@@ -32,12 +32,13 @@ Notes on Linux networking — from Ethernet frames and bridges up through netfil
 
 ### Internet routing
 
-- [BGP, ASNs and Anycast](bgp-anycast.md)
+- [BGP](bgp.md) — protocol, how Linux carries it (netlink, ECMP, TCP-MD5/AO, GTSM, VRFs), labs, use cases
+- [Anycast and ASNs](bgp-anycast.md)
 
 ### Containers and orchestration
 
 - [Docker](docker.md) — namespaces, cgroups, OverlayFS, image layers, build cache
-- [Kubernetes networking](kubernetes.md) — pod/node/service CIDRs, CNIs (Calico, Flannel, AWS VPC CNI)
+- [Kubernetes networking](kubernetes.md) — pod/node/service CIDRs, CNIs (Calico, Flannel, AWS VPC CNI), cluster DNS vs CoreDNS
 - [Kafka](kafka.md) — listeners, Docker Compose and its NAT rules
 
 ### Cloud

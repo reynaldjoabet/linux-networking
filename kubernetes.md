@@ -37,6 +37,48 @@ See also: [VXLAN in Kubernetes](vxlan.md#vxlan-in-kubernetes).
 
 Must not overlap with the Pod CIDR or the Node CIDR — but Service IPs are **virtual**, not routed.
 
+**Where it is set.** The range is a control-plane setting, fixed when the cluster is created:
+
+| Setup | Setting | Default |
+|---|---|---|
+| Any cluster | `kube-apiserver --service-cluster-ip-range` (and the same flag on `kube-controller-manager`) | none |
+| kubeadm | `ClusterConfiguration.networking.serviceSubnet` | `10.96.0.0/12` |
+| EKS | `kubernetesNetworkConfig.serviceIpv4Cidr` | `10.100.0.0/16` or `172.20.0.0/16` |
+| GKE | `--services-ipv4-cidr` | picked from the VPC |
+| AKS | `--service-cidr` | `10.0.0.0/16` |
+
+```yaml
+# kubeadm config
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+networking:
+  serviceSubnet: 10.96.0.0/12     # → --service-cluster-ip-range on kube-apiserver
+  podSubnet: 10.244.0.0/16
+  dnsDomain: cluster.local        # → kubelet clusterDomain
+```
+
+**How a Service gets its IP.** When you create a Service without `spec.clusterIP`, the API server allocates a free address from the range and stores it in the Service object. Nothing else chooses it, and it stays until the Service is deleted. A few addresses are fixed by convention:
+
+| IP (kubeadm) | Service | Why |
+|---|---|---|
+| `10.96.0.1` | `default/kubernetes` | The API server always takes the first address |
+| `10.96.0.10` | `kube-system/kube-dns` | kubeadm sets `clusterIP` explicitly to the 10th address and writes the same IP into kubelet's `clusterDNS` |
+| anything else | your Services | Allocated automatically (e.g. `orders` → `10.96.4.7`) |
+
+To pin an address yourself, set `spec.clusterIP` to a free IP in the range. Automatic allocation prefers the upper part of the range, which keeps the lower part free for pinned IPs like these.
+
+**Finding the range on an existing cluster:**
+
+```sh
+kubectl get servicecidr                                           # Kubernetes 1.33+: the range as an API object
+kubectl -n kube-system get cm kubeadm-config -o yaml | grep serviceSubnet    # kubeadm clusters
+kubectl -n kube-system get pod -l component=kube-apiserver -o yaml | grep service-cluster-ip-range
+
+# Works anywhere: ask for an impossible IP and read the error
+kubectl create service clusterip probe --tcp=80 --clusterip=1.1.1.1 --dry-run=server
+# → ... provided IP is not in the valid range. The range of valid IPs is 10.96.0.0/12
+```
+
 ### Splitting the Pod CIDR per node
 
 If the cluster Pod CIDR is `172.16.0.0/12`, Kubernetes (or the CNI) splits it:
@@ -335,6 +377,433 @@ An important distinguishing feature of network implementations is whether pod IP
 ### Routable (BGP)
 
 With BGP (see [Calico BGP peering](#bgp-peering)), nodes share pod routes with the underlying network, making pod IPs routable outside the cluster.
+
+## Cluster DNS vs CoreDNS
+
+**Cluster DNS** is the *what*: a Kubernetes contract that every pod can resolve Services (and some pods) by name, e.g. `my-svc.my-ns.svc.cluster.local`. **CoreDNS** is the *how*: the DNS server that implements that contract in most clusters today.
+
+| | Cluster DNS | CoreDNS |
+|---|---|---|
+| What it is | A cluster add-on role defined by the [Kubernetes DNS spec](https://github.com/kubernetes/dns/blob/master/docs/specification.md) | A general-purpose DNS server (CNCF project, Go, plugin-based) |
+| Where it lives | A Service IP plus kubelet config | A Deployment of pods in `kube-system` |
+| Replaceable? | No — workloads depend on the names | Yes — kube-dns (older), NodeLocal DNSCache, or a cloud DNS can serve it |
+| Configured by | kubelet `clusterDNS` / `clusterDomain`, pod `dnsPolicy` / `dnsConfig` | The `Corefile` in the `coredns` ConfigMap |
+| Exists outside Kubernetes? | No | Yes — it can serve any zone |
+
+### The pieces
+
+- **The DNS Service.** A ClusterIP Service in `kube-system`, by convention the 10th address of the Service CIDR (`10.96.0.10` with kubeadm, `10.100.0.10` or `172.20.0.10` on EKS). It is still named **`kube-dns`** even when CoreDNS is behind it — kept for compatibility after CoreDNS replaced kube-dns as the default (Kubernetes 1.13).
+- **kubelet.** Its `clusterDNS` setting is that Service IP and `clusterDomain` is usually `cluster.local`. kubelet writes them into every pod's `/etc/resolv.conf`.
+- **CoreDNS pods.** The endpoints behind the `kube-dns` Service. Its `kubernetes` plugin watches the API server for Services and EndpointSlices and answers from memory; anything else is forwarded upstream.
+
+```sh
+kubectl -n kube-system get svc kube-dns            # the cluster DNS IP
+kubectl -n kube-system get deploy coredns          # the implementation
+kubectl -n kube-system get cm coredns -o yaml      # the Corefile
+```
+
+### Where each setting lives
+
+There is no per-namespace DNS object. Settings are per cluster, per node, or per pod:
+
+| Setting | Scope | Set in |
+|---|---|---|
+| Corefile (plugins, upstreams, cache, stub zones) | Cluster | `coredns` ConfigMap in `kube-system`; one CoreDNS for everyone |
+| Cluster domain (`cluster.local`) | Cluster (set on each node, must match) | kubelet `clusterDomain` |
+| DNS server IP (`10.96.0.10`) | Cluster (set on each node) | kubelet `clusterDNS` |
+| Node search domains, upstream resolvers | Node | Node's `/etc/resolv.conf` (kubelet `resolvConf`) |
+| `search` list | Pod | Generated by kubelet: `<pod-ns>.svc.<domain> svc.<domain> <domain>` + node's search domains |
+| `dnsPolicy`, `dnsConfig` (`ndots`, extra nameservers/searches) | Pod | Pod spec, usually via the Deployment's pod template |
+
+The namespace only affects the first `search` entry. For namespace-wide defaults (e.g. `ndots: 2` for every pod in `payments`), set `dnsConfig` in each workload, or have an admission policy (Kyverno, Gatekeeper, a mutating webhook) inject it.
+
+### A pod's `/etc/resolv.conf`
+
+```text
+nameserver 10.96.0.10
+search default.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+```
+
+- `nameserver` is the cluster DNS Service IP, not a CoreDNS pod IP.
+- `search` lists the endings the resolver tries on short names ([see below](#search-domains-how-short-names-resolve)).
+- `ndots:5` decides whether those endings are tried before or after the bare name ([see below](#ndots-endings-first-or-bare-name-first)).
+
+### Where a name like `orders.shop.svc.cluster.local` comes from
+
+Nobody writes DNS records in Kubernetes. You create a Service; CoreDNS's `kubernetes` plugin watches the API server and **derives** the name from the Service's metadata:
+
+```text
+orders . shop . svc . cluster.local
+  │       │      │        │
+  │       │      │        └── cluster domain: kubelet clusterDomain + the zone in the Corefile's `kubernetes` line
+  │       │      └── fixed label: "this is a Service" (pods get `pod`)
+  │       └── metadata.namespace of the Service
+  └── metadata.name of the Service
+```
+
+The answer (`10.96.4.7`) is the Service's ClusterIP, which the API server picks from the [Service CIDR](#service-cidr) when the Service is created.
+
+The configs behind every example in this section:
+
+```yaml
+# --- namespace "shop": the orders Service, and the client pod doing the lookups
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: orders }
+  template:
+    metadata:
+      labels: { app: orders }
+    spec:
+      containers:
+        - name: orders
+          image: nginx:1.27
+          ports:
+            - name: http
+              containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders          # → orders.shop.svc.cluster.local
+  namespace: shop
+spec:
+  selector: { app: orders }
+  # clusterIP: 10.96.4.7   # optional; normally left out and assigned automatically
+  ports:
+    - name: http        # named port → SRV record _http._tcp.orders.shop.svc.cluster.local
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client          # the pod whose lookups are traced below
+  namespace: shop       # → kubelet writes "search shop.svc.cluster.local ..." into its resolv.conf
+spec:
+  # dnsPolicy: ClusterFirst   # the default; this is what makes kubelet write the cluster resolv.conf
+  containers:
+    - name: tools
+      image: nicolaka/netshoot:v0.13
+      command: ["sleep", "infinity"]
+---
+# --- namespace "payments": the billing Service, reached from shop as "billing.payments"
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing         # → billing.payments.svc.cluster.local
+  namespace: payments
+spec:
+  selector: { app: billing }
+  ports:
+    - port: 80
+```
+
+`api.stripe.com` needs no config: it isn't in `cluster.local`, so CoreDNS's `forward` plugin passes it to the node's upstream resolver.
+
+The cluster-wide parts come from kubelet on every node (`/var/lib/kubelet/config.yaml`) and from the [Corefile](#the-corefile):
+
+```yaml
+# KubeletConfiguration (excerpt)
+clusterDomain: cluster.local     # the last part of every name, and of every search ending
+clusterDNS:
+  - 10.96.0.10                   # the kube-dns Service IP → "nameserver" in each pod's resolv.conf
+resolvConf: /etc/resolv.conf     # the node's file; its search domains are appended to the pod's
+```
+
+```text
+kubernetes cluster.local in-addr.arpa ip6.arpa {   # Corefile: answer this zone from the API
+```
+
+Check each piece:
+
+```sh
+kubectl apply -f dns-demo.yaml                     # the manifests above, saved to a file
+kubectl -n shop get svc orders                     # CLUSTER-IP is the A record
+kubectl -n shop exec client -- cat /etc/resolv.conf
+kubectl -n shop exec client -- dig +search orders            # follows the search list
+kubectl -n shop exec client -- dig +search billing.payments
+kubectl -n shop exec client -- dig orders.shop.svc.cluster.local
+```
+
+**The `dev`/`prod` example** below is the same idea twice: a Service with the same name in two namespaces, and an app that only uses the short name.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: dev        # → postgres.dev.svc.cluster.local   (prod: same manifest, namespace: prod)
+spec:
+  selector: { app: postgres }
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: dev        # deploy the identical manifest to prod
+spec:
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      containers:
+        - name: api
+          image: example/api:1.0
+          env:
+            - name: DB_HOST
+              value: postgres   # short name: first search ending is <own namespace>.svc.cluster.local
+```
+
+### Search domains: how short names resolve
+
+**DNS servers only understand full names.** CoreDNS has a record for `orders.shop.svc.cluster.local`; ask it for `orders` and it answers NXDOMAIN ("no such name"). It never guesses.
+
+Your app just says `orders`, so something must turn that into the full name. That is **the resolver inside the pod** (the libc code behind `getaddrinfo()`), not CoreDNS. It **guesses**: it appends endings to the name, asks the server about each guess, and stops at the first one that exists. The endings come from the `search` line in `/etc/resolv.conf`. This is standard resolver behaviour (`man resolv.conf`): an office network with `search corp.example.com` lets you `ssh fileserver`. Kubernetes uses the same mechanism with cluster endings.
+
+For a pod in namespace `shop` (`search shop.svc.cluster.local svc.cluster.local cluster.local`), each line below is a real DNS query, sent one at a time:
+
+**The app asks for `orders`**
+
+```text
+query 1: orders.shop.svc.cluster.local   → 10.96.4.7     STOP
+```
+
+The first guess is right: `orders` means "the `orders` Service in my own namespace".
+
+**The app asks for `billing.payments`**
+
+```text
+query 1: billing.payments.shop.svc.cluster.local  → NXDOMAIN
+query 2: billing.payments.svc.cluster.local       → 10.96.9.2   STOP
+```
+
+The first ending produced a name that doesn't exist, so the resolver moved on to the next.
+
+**The app asks for `api.stripe.com`**
+
+The resolver can't tell an internet name from a cluster name, so it does the same thing:
+
+```text
+query 1: api.stripe.com.shop.svc.cluster.local   → NXDOMAIN
+query 2: api.stripe.com.svc.cluster.local        → NXDOMAIN
+query 3: api.stripe.com.cluster.local            → NXDOMAIN
+query 4: api.stripe.com                          → 54.187.x.x  STOP
+```
+
+Three wasted queries: the endings only make sense for cluster names, but they were tried anyway.
+
+Which ending each short form needs:
+
+| You type | Ending that matches | Resolves as |
+|---|---|---|
+| `orders` | `shop.svc.cluster.local` | `orders.shop.svc.cluster.local`: a Service in **your own** namespace |
+| `billing.payments` | `svc.cluster.local` | `billing.payments.svc.cluster.local`: a Service in **another** namespace |
+| `billing.payments.svc` | `cluster.local` | `billing.payments.svc.cluster.local` |
+
+kubelet builds the first ending from the pod's own namespace. So the same config (`DB_HOST=postgres`) reaches `postgres` in `dev` when the pod runs in `dev`, and `postgres` in `prod` when it runs in `prod`. Environments are wired up by namespace, with no config changes.
+
+The node's own search domains are appended too (on EC2, `ec2.internal` or `<region>.compute.internal`), so pods often have 4–6 endings.
+
+### ndots: endings first, or bare name first?
+
+Trying endings first is right for `orders` but wrong for `api.stripe.com`. `ndots` is how the resolver picks the order, by counting the dots in the name:
+
+| The name has… | The resolver tries… |
+|---|---|
+| fewer dots than `ndots` | each search ending, in order, then the name as-is |
+| `ndots` or more dots | the name as-is first, then the search endings if that fails |
+| a trailing dot (`api.stripe.com.`) | only the name as-is, never the search list |
+
+`ndots` never stops a name from resolving. It only changes the order, and so how many wasted queries come before the right one.
+
+The whole procedure:
+
+```python
+def resolve(name):
+    if name.endswith("."):                       # fully qualified: no guessing
+        return ask_dns(name)
+
+    guesses = [name + "." + s for s in search_domains]
+    if name.count(".") < ndots:
+        order = guesses + [name]                 # endings first
+    else:
+        order = [name] + guesses                 # bare name first
+
+    for candidate in order:
+        answer = ask_dns(candidate)              # a real query to CoreDNS
+        if answer:
+            return answer
+    return "not found"
+```
+
+The search list provides the endings, `ndots` decides whether they go before or after the bare name, and CoreDNS only ever answers exact full names.
+
+**Why Kubernetes picks 5.** Every short cluster name should hit the search list first, including the longest:
+
+| Name | Dots | With ndots:5 |
+|---|---|---|
+| `orders` | 0 | endings first ✓ |
+| `orders.shop` | 1 | endings first ✓ |
+| `orders.shop.svc` | 2 | endings first ✓ |
+| `_http._tcp.orders.shop.svc` (SRV) | 4 | endings first ✓ |
+
+The side effect: most internet names (`api.stripe.com` has 2 dots, `s3.us-east-1.amazonaws.com` has 3) are also treated as short, which gives the `api.stripe.com` sequence above.
+
+**The cost.** Many resolvers send A (IPv4) and AAAA (IPv6) queries in parallel, so one external lookup can cost up to 8 queries, plus 2 more for each node search domain. That is a large share of the load on CoreDNS in busy clusters, and it is where the conntrack races from [the packet path](#the-packet-path) tend to show up.
+
+**What lowering it to 2 does:**
+
+| Name | Dots | ndots:5 | ndots:2 |
+|---|---|---|---|
+| `orders` | 0 | endings first (hit) | endings first (hit) |
+| `orders.shop` | 1 | endings first (hit) | endings first (hit) |
+| `orders.shop.svc` | 2 | endings first (hit) | as-is first: miss (goes upstream), *then* endings (hit) |
+| `api.stripe.com` | 2 | 3 misses, then hit | as-is first: **hit immediately** |
+
+External names get fast; cluster names with 2+ dots pay one extra miss but still resolve. If your apps use `orders` or `orders.shop` internally and full domains externally, ndots:2 is nearly all gain.
+
+Mitigations:
+
+- **Trailing dot** (you control the hostname): `api.stripe.com.` is fully qualified and skips the search list entirely. It is the cheapest fix and changes nothing else.
+- **Lower `ndots` per pod** (the name is buried in a library or SDK):
+
+```yaml
+spec:
+  dnsConfig:
+    options:
+      - name: ndots
+        value: "2"
+```
+
+- **NodeLocal DNSCache** (neither is practical): the extra queries still happen, but they are answered from a cache on the node (see [the packet path](#the-packet-path)).
+
+### The Corefile
+
+```text
+.:53 {
+    errors
+    health
+    ready
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+        pods insecure
+        fallthrough in-addr.arpa ip6.arpa
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf     # upstream = the node's resolver
+    cache 30
+    loop
+    reload
+    loadbalance
+}
+```
+
+`kubernetes` answers `cluster.local`; `forward` sends everything else to the node's resolvers (in the cloud, usually the VPC resolver).
+
+### What names exist
+
+Using the `shop` namespace from [above](#where-a-name-like-ordersshopsvcclusterlocal-comes-from):
+
+| Name | Answer | Created by |
+|---|---|---|
+| `orders.shop.svc.cluster.local` | A/AAAA: the Service's ClusterIP | a normal Service |
+| `db.shop.svc.cluster.local` | A/AAAA: every ready pod IP | a headless Service (`clusterIP: None`) |
+| `db-0.db.shop.svc.cluster.local` | A: one StatefulSet pod | a StatefulSet whose `serviceName` is the headless Service |
+| `_http._tcp.orders.shop.svc.cluster.local` | SRV: port 80 and target `orders.shop.svc.cluster.local` | a Service port with `name: http` (see `orders` above) |
+| `10-244-1-5.shop.pod.cluster.local` | A: `10.244.1.5` (dashed pod IP) | any pod, if the Corefile has `pods insecure` |
+| `stripe.shop.svc.cluster.local` | CNAME `api.stripe.com` | an ExternalName Service |
+
+```yaml
+# headless Service + StatefulSet → db.shop... and db-0.db.shop...
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: shop
+spec:
+  clusterIP: None       # headless: DNS returns pod IPs, no virtual IP
+  selector: { app: db }
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db              # pods are named db-0, db-1, ...
+  namespace: shop
+spec:
+  serviceName: db       # must name the headless Service → db-0.db.shop.svc.cluster.local
+  replicas: 2
+  selector:
+    matchLabels: { app: db }
+  template:
+    metadata:
+      labels: { app: db }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - name: POSTGRES_PASSWORD
+              value: example
+---
+# ExternalName → stripe.shop.svc.cluster.local is a CNAME to api.stripe.com
+apiVersion: v1
+kind: Service
+metadata:
+  name: stripe
+  namespace: shop
+spec:
+  type: ExternalName
+  externalName: api.stripe.com
+```
+
+```sh
+kubectl -n shop exec client -- dig +short db.shop.svc.cluster.local          # several pod IPs
+kubectl -n shop exec client -- dig +short db-0.db.shop.svc.cluster.local
+kubectl -n shop exec client -- dig SRV _http._tcp.orders.shop.svc.cluster.local
+kubectl -n shop exec client -- dig stripe.shop.svc.cluster.local             # CNAME, then A
+```
+
+### `dnsPolicy`
+
+| Policy | Pod uses |
+|---|---|
+| `ClusterFirst` (default) | Cluster DNS; non-cluster names forwarded upstream |
+| `ClusterFirstWithHostNet` | Same, for `hostNetwork: true` pods |
+| `Default` | The node's `/etc/resolv.conf` — no cluster names |
+| `None` | Only what `dnsConfig` specifies |
+
+Note that `Default` is *not* the default; `ClusterFirst` is. A `hostNetwork: true` pod with `ClusterFirst` silently falls back to `Default` behaviour.
+
+### The packet path
+
+1. The app calls `getaddrinfo()`; the libc resolver sends UDP to `10.96.0.10:53`.
+2. kube-proxy's iptables/IPVS rules (or Cilium's eBPF) DNAT it to one CoreDNS pod IP — the same mechanism as any [Service](#service-cidr).
+3. CoreDNS answers from its cache of the API, or forwards upstream.
+4. [conntrack](conntrack.md) reverses the DNAT on the reply.
+
+Two well-known problems come from step 2: the UDP **conntrack insert race** (A and AAAA queries sent in parallel from the same socket; one gets dropped, causing 5 s timeouts) and **conntrack table pressure** on busy nodes. **NodeLocal DNSCache** fixes both: a CoreDNS-based cache runs as a DaemonSet on every node, listens on a link-local address (`169.254.20.10`), and is reached without DNAT or conntrack. It is still part of *cluster DNS* — just a different implementation path.
 
 ## Linux routing refresher
 
