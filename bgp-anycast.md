@@ -71,10 +71,10 @@ You               ┌────────────┐
 
 ### Types of ASNs
 
-| Type    | Allocated by                     | Used for                                         | Range                                               |
-| ------- | -------------------------------- | ------------------------------------------------ | --------------------------------------------------- |
-| Public  | RIRs (ARIN, RIPE, APNIC, …)      | Connecting to the global internet                | 1–64,495 (plus 4-byte ASNs up to ~4.2 billion)      |
-| Private | —                                | Internal BGP inside organizations (not advertised globally) | 64,512–65,534 and 4,200,000,000–4,294,967,294 |
+| Type    | Allocated by                | Used for                                                    | Range                                          |
+| ------- | --------------------------- | ----------------------------------------------------------- | ---------------------------------------------- |
+| Public  | RIRs (ARIN, RIPE, APNIC, …) | Connecting to the global internet                           | 1–64,495 (plus 4-byte ASNs up to ~4.2 billion) |
+| Private | —                           | Internal BGP inside organizations (not advertised globally) | 64,512–65,534 and 4,200,000,000–4,294,967,294  |
 
 ## BGP
 

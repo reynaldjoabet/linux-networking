@@ -12,11 +12,11 @@
 
 IPv4 has a 32-bit address space (≈ 4.3 billion addresses). To conserve space, there are private ranges:
 
-| Class | Network       | Range                         | Default mask           |
-| ----- | ------------- | ----------------------------- | ---------------------- |
-| A     | `10.0.0.0`    | 10.0.0.0 – 10.255.255.255     | `255.0.0.0` (`/8`)     |
-| B     | `172.16.0.0`  | 172.16.0.0 – 172.31.255.255   | `255.240.0.0` (`/12`)  |
-| C     | `192.168.0.0` | 192.168.0.0 – 192.168.255.255 | `255.255.0.0` (`/16`)  |
+| Class | Network       | Range                         | Default mask          |
+| ----- | ------------- | ----------------------------- | --------------------- |
+| A     | `10.0.0.0`    | 10.0.0.0 – 10.255.255.255     | `255.0.0.0` (`/8`)    |
+| B     | `172.16.0.0`  | 172.16.0.0 – 172.31.255.255   | `255.240.0.0` (`/12`) |
+| C     | `192.168.0.0` | 192.168.0.0 – 192.168.255.255 | `255.255.0.0` (`/16`) |
 
 These are **not** globally unique — millions of networks reuse them. That's why NAT exists: many private networks share the same internal addresses but appear as one public IP on the internet. VPNs are made up of private IPs too.
 
@@ -71,13 +71,13 @@ That's the whole router configuration. Reaching other subnets works out of the b
 ### What the instance sees
 Reserved addresses. AWS reserves five addresses in every subnet; for `172.16.0.0/24`:
 
-| Address | Use                                      |
-| ------- | ---------------------------------------- |
-| `.0`    | Network address                          |
-| `.1`    | VPC router (the subnet's gateway)        |
-| `.2`    | DNS resolver                             |
-| `.3`    | Reserved                                 |
-| `.255`  | Broadcast (not supported, but reserved)  |
+| Address | Use                                     |
+| ------- | --------------------------------------- |
+| `.0`    | Network address                         |
+| `.1`    | VPC router (the subnet's gateway)       |
+| `.2`    | DNS resolver                            |
+| `.3`    | Reserved                                |
+| `.255`  | Broadcast (not supported, but reserved) |
 
 DHCP config. The instance gets its IP, the `/24` mask, and `.1` as its router via DHCP, so its OS table is just:
 ```sh

@@ -135,14 +135,14 @@ int netdev_rx_handler_register(struct net_device *dev,
 
 Who uses `rx_handler`:
 
-| Module       | `rx_handler`           | Purpose |
-| ------------ | ---------------------- | ------- |
+| Module       | `rx_handler`           | Purpose                           |
+| ------------ | ---------------------- | --------------------------------- |
 | Bridge       | `br_handle_frame`      | Intercept frames for L2 switching |
-| Bonding      | `bond_handle_frame`    | Aggregate multiple NICs |
-| Team         | `team_handle_frame`    | Modern bonding alternative |
-| Open vSwitch | `ovs_vport_receive`    | Software-defined networking |
-| macvlan      | `macvlan_handle_frame` | MAC-based VLAN |
-| ipvlan       | `ipvlan_handle_frame`  | IP-based VLAN |
+| Bonding      | `bond_handle_frame`    | Aggregate multiple NICs           |
+| Team         | `team_handle_frame`    | Modern bonding alternative        |
+| Open vSwitch | `ovs_vport_receive`    | Software-defined networking       |
+| macvlan      | `macvlan_handle_frame` | MAC-based VLAN                    |
+| ipvlan       | `ipvlan_handle_frame`  | IP-based VLAN                     |
 
 ### Bridge example
 
@@ -273,12 +273,12 @@ br_add_if(br, dev)          "add dev (e.g. eth0) to bridge br0"
 │   │   Enable netpoll for debugging
 │   │
 │   ├── netdev_rx_handler_register(dev, br_handle_frame, p)      :613
-│   │   ┌──────────────────────────────────────────────┐
-│   │   │  THE KEY STEP                                │
-│   │   │  Hijacks all incoming frames on eth0         │
-│   │   │  Now eth0 → br_handle_frame() → bridge logic │
-│   │   │  eth0 no longer delivers to IP stack directly │
-│   │   └──────────────────────────────────────────────┘
+│   │   ┌─────────────────────────────────────────────────┐
+│   │   │  THE KEY STEP                                   │
+│   │   │  Hijacks all incoming frames on eth0            │
+│   │   │  Now eth0 → br_handle_frame() → bridge logic    │
+│   │   │  eth0 no longer delivers to IP stack directly   │
+│   │   └─────────────────────────────────────────────────┘
 │   │
 │   ├── dev->priv_flags |= IFF_BRIDGE_PORT                       :616
 │   │   Mark eth0 as "I'm a bridge port"
@@ -329,12 +329,12 @@ netdev_rx_handler_register(dev, br_get_rx_handler(dev), p)
                           eth0     br_handle_frame     port struct
 
   What it does:
-  ┌────────────────────────────────────────────────┐
-  │  1. Check if handler already registered → EBUSY│
-  │  2. Check if device forbids handlers  → EINVAL│
-  │  3. dev->rx_handler_data = p                   │  ← bridge port struct
-  │  4. dev->rx_handler     = br_handle_frame      │  ← the function
-  └────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────┐
+  │  1. Check if handler already registered → EBUSY  │
+  │  2. Check if device forbids handlers    → EINVAL │
+  │  3. dev->rx_handler_data = p                     │  ← bridge port struct
+  │  4. dev->rx_handler     = br_handle_frame        │  ← the function
+  └──────────────────────────────────────────────────┘
 
   After this, eth0's net_device looks like:
   ┌──────────────────────────────────────┐
@@ -2057,7 +2057,7 @@ struct list_head {
   BR_FDB_LOCAL is NOT set → normal forwarding path:
       br_forward(dst->dst, skb, ...)  → send out port0 (veth-host0)
 
-                          ┌─────────────────────────────┐
+                          ┌──────────────────────────────┐
                           │        docker0  (br0)        │
                           │                              │
                           │  lookup CC:CC:01             │
@@ -2120,7 +2120,8 @@ struct list_head {
   │                                                    │
   │  p = br_port_get_rcu(skb->dev)  → gets port struct │
   │  Basic checks (valid MAC, STP state, etc.)         │
-  │  → calls nf_hook_bridge_pre() → br_handle_frame_finish()
+  │  → calls nf_hook_bridge_pre()                      │
+  │      → br_handle_frame_finish()                    │
   └─────┬──────────────────────────────────────────────┘
         │
   ┌─────┴──────────────────────────────────────────────┐

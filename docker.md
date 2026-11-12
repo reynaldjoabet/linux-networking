@@ -142,13 +142,13 @@ upperdir=/var/lib/desktop-containerd/.../snapshots/581/fs,
 workdir=/var/lib/desktop-containerd/.../snapshots/581/work)
 ```
 
-| Term       | Meaning                                                                                                   |
-| ---------- | --------------------------------------------------------------------------------------------------------- |
-| `overlay`  | The filesystem driver type (OverlayFS).                                                                   |
-| `on /`     | Mounted as the container's root `/`.                                                                      |
-| `lowerdir` | Colon-separated list of read-only layers (the image layers), from the base image like Ubuntu or Python.   |
-| `upperdir` | The writable layer for this specific container. Any file you create or modify goes here.                 |
-| `workdir`  | Used internally by the kernel for OverlayFS operations (temporary workspace).                             |
+| Term       | Meaning                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------- |
+| `overlay`  | The filesystem driver type (OverlayFS).                                                                 |
+| `on /`     | Mounted as the container's root `/`.                                                                    |
+| `lowerdir` | Colon-separated list of read-only layers (the image layers), from the base image like Ubuntu or Python. |
+| `upperdir` | The writable layer for this specific container. Any file you create or modify goes here.                |
+| `workdir`  | Used internally by the kernel for OverlayFS operations (temporary workspace).                           |
 
 So the `lowerdir` paths are the image's layers (stored by containerd), the `upperdir` is the container's writable layer (unique per container), and OverlayFS merges them into the single filesystem the process sees as `/`.
 
@@ -240,17 +240,17 @@ WORKDIR /app/data
 
 ### Image layers vs the container layer
 
-| Type             | Description                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------ |
-| Image layers     | Read-only, stacked during the build from Dockerfile instructions (`FROM`, `RUN`, `COPY`, …). Frozen, immutable snapshots once the image is complete. |
-| Container layer  | Not part of the image. Created only when a container runs: a temporary, writable overlay on top of all image layers, storing runtime changes (new/deleted files, logs, etc.). |
+| Type            | Description                                                                                                                                                                   |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image layers    | Read-only, stacked during the build from Dockerfile instructions (`FROM`, `RUN`, `COPY`, …). Frozen, immutable snapshots once the image is complete.                          |
+| Container layer | Not part of the image. Created only when a container runs: a temporary, writable overlay on top of all image layers, storing runtime changes (new/deleted files, logs, etc.). |
 
 Because image layers are immutable, a running container that needs to write (e.g. temp files) gets a **transient read-write layer** on top of the stack. Writes go there seamlessly, but the changes are lost when the container is removed (unless you use volumes). This also lets many containers run from the same underlying image.
 
-| Command         | Creates new layer? | Description                                                          |
-| --------------- | ------------------ | -------------------------------------------------------------------- |
-| `docker build`  | ✅                 | Builds an image; each relevant Dockerfile instruction adds a layer.  |
-| `docker commit` | ✅                 | Saves the current state of a container as a new image layer.         |
+| Command         | Creates new layer? | Description                                                         |
+| --------------- | ------------------ | ------------------------------------------------------------------- |
+| `docker build`  | ✅                 | Builds an image; each relevant Dockerfile instruction adds a layer. |
+| `docker commit` | ✅                 | Saves the current state of a container as a new image layer.        |
 
 ### Stacking the layers
 

@@ -96,18 +96,19 @@ This is essentially BGP + internal overlay routing, handled automatically by Fly
 
 ```text
                🌍 Fly.io Global Private Network
-┌─────────────────────────────────────────────────────┐
-│ fdaa::/16  (Encrypted IPv6-only internal backbone)  │
-│                                                     │
-│  ┌────────────┐     ┌────────────┐     ┌────────────┐
-│  │ iad (USA)  │────▶│ lhr (UK)   │────▶│ sin (SG)   │
-│  │ App A: fdaa:1:2::10           │     │ App B: fdaa:1:3::20│
-│  └────────────┘     └────────────┘     └────────────┘
-│         ▲                                       │
-│         │                                       │
-│    WireGuard VPN                         Internal App Calls
-│  (Your laptop joins the same fdaa::/16 network) │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ fdaa::/16  (Encrypted IPv6-only internal backbone)           │
+│                                                              │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐  │
+│  │ iad (USA)    │────▶│ lhr (UK)     │────▶│ sin (SG)     │  │
+│  │ App A        │     │              │     │ App B        │  │
+│  │ fdaa:1:2::10 │     │              │     │ fdaa:1:3::20 │  │
+│  └──────────────┘     └──────────────┘     └──────────────┘  │
+│         ▲                                          │         │
+│         │                                          │         │
+│    WireGuard VPN                          Internal app calls │
+│  (your laptop joins the same fdaa::/16 network)              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### Address–key binding: no spoofing
@@ -135,13 +136,13 @@ See [WireGuard](wireguard.md).
 
 Fly provides a "magic" DNS service. Every app in the same org can reach others over the private network using internal names:
 
-| Name                                   | Resolves to                                                        |
-| -------------------------------------- | ------------------------------------------------------------------ |
-| `<app-name>.internal`                  | All instances of that app (6PN addresses)                          |
-| `top2.nearest.of.<app-name>.internal`  | The two closest instances to the caller                            |
-| `<region>.<app-name>.internal`         | Instances in one region (e.g. `fra.api.internal`)                  |
-| `<instance-id>.vm.<app-name>.internal` | A specific Machine's 6PN address (direct, bypassing the proxy)     |
-| `<app-name>.flycast`                   | The app's Flycast address (proxy-managed)                          |
+| Name                                   | Resolves to                                                    |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `<app-name>.internal`                  | All instances of that app (6PN addresses)                      |
+| `top2.nearest.of.<app-name>.internal`  | The two closest instances to the caller                        |
+| `<region>.<app-name>.internal`         | Instances in one region (e.g. `fra.api.internal`)              |
+| `<instance-id>.vm.<app-name>.internal` | A specific Machine's 6PN address (direct, bypassing the proxy) |
+| `<app-name>.flycast`                   | The app's Flycast address (proxy-managed)                      |
 
 > The original notes listed `<app-name>.internal` twice — once as "all instances" and once as "two closest instances"; the latter is Fly's `top2.nearest.of.` prefix. They also said `appname.internal` resolves to the Flycast address; per Fly's docs, Flycast is reached via `<app>.flycast`, while `.internal` returns Machine 6PN addresses.
 

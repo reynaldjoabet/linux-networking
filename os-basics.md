@@ -14,11 +14,11 @@ Multiple file descriptors (even across processes) can refer to the same open fil
 
 Standard descriptors — your own files start at 3:
 
-| FD | Stream          | Usually              |
-| -- | --------------- | -------------------- |
-| 0  | standard input  | keyboard             |
-| 1  | standard output | terminal             |
-| 2  | standard error  | terminal             |
+| FD  | Stream          | Usually  |
+| --- | --------------- | -------- |
+| 0   | standard input  | keyboard |
+| 1   | standard output | terminal |
+| 2   | standard error  | terminal |
 
 ```c
 write(1, "Hello, world\n", 13);

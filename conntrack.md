@@ -10,11 +10,11 @@ A table maintained by the kernel that records the state and NAT mappings of each
 
 Common connection states (`ctstate`):
 
-| State         | Meaning                                                                                    |
-| ------------- | ------------------------------------------------------------------------------------------ |
-| `NEW`         | The first packet of a flow (no existing entry).                                            |
-| `ESTABLISHED` | A bidirectional connection that has been fully established.                                |
-| `RELATED`     | A connection related to an existing one (e.g. an FTP data channel or an ICMP error).       |
+| State         | Meaning                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `NEW`         | The first packet of a flow (no existing entry).                                                   |
+| `ESTABLISHED` | A bidirectional connection that has been fully established.                                       |
+| `RELATED`     | A connection related to an existing one (e.g. an FTP data channel or an ICMP error).              |
 | `INVALID`     | A packet that cannot be associated with any existing connection (possibly malformed or tampered). |
 
 Who relies on it:

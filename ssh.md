@@ -25,11 +25,11 @@ An SSH session has four main phases:
 
 ### Encryption layers in SSH
 
-| Layer                  | Algorithms             | Used for                                  |
-| ---------------------- | ---------------------- | ----------------------------------------- |
-| Symmetric encryption   | AES, ChaCha20, …       | Bulk traffic (fast)                       |
-| Asymmetric encryption  | RSA, ECDSA, Ed25519    | Only during handshake/authentication      |
-| MACs                   | HMAC-SHA2, Poly1305    | Detecting tampering                       |
+| Layer                 | Algorithms          | Used for                             |
+| --------------------- | ------------------- | ------------------------------------ |
+| Symmetric encryption  | AES, ChaCha20, …    | Bulk traffic (fast)                  |
+| Asymmetric encryption | RSA, ECDSA, Ed25519 | Only during handshake/authentication |
+| MACs                  | HMAC-SHA2, Poly1305 | Detecting tampering                  |
 
 ## Best practices
 
@@ -75,11 +75,11 @@ With SSH tunnels you can:
 
 SSH is not only tunneling, but tunneling is one of its key features. The three types:
 
-| Type    | Description                                                     | Example use case                                   |
-| ------- | --------------------------------------------------------------- | -------------------------------------------------- |
-| Local   | Forwards a local port to a remote destination via the SSH tunnel | Access a remote database or internal service       |
-| Remote  | Exposes a local service to a remote server via the SSH tunnel    | Make your local dev server reachable remotely      |
-| Dynamic | Acts like a SOCKS proxy, routing traffic dynamically             | Securely browse the internet over SSH              |
+| Type    | Description                                                      | Example use case                              |
+| ------- | ---------------------------------------------------------------- | --------------------------------------------- |
+| Local   | Forwards a local port to a remote destination via the SSH tunnel | Access a remote database or internal service  |
+| Remote  | Exposes a local service to a remote server via the SSH tunnel    | Make your local dev server reachable remotely |
+| Dynamic | Acts like a SOCKS proxy, routing traffic dynamically             | Securely browse the internet over SSH         |
 
 ```sh
 ssh -L 8080:localhost:80 user@remote

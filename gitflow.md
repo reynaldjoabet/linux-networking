@@ -27,11 +27,11 @@ Long-lived branches:
 
 Short-lived branches:
 
-| Branch      | Created from | Merged into          | Purpose                                         |
-| ----------- | ------------ | -------------------- | ----------------------------------------------- |
-| `feature/*` | `develop`    | `develop`            | Building individual features or fixes.          |
-| `release/*` | `develop`    | `main` and `develop` | Final QA, version bumping, and release prep.    |
-| `hotfix/*`  | `main`       | `main` and `develop` | Urgent fixes in production.                     |
+| Branch      | Created from | Merged into          | Purpose                                      |
+| ----------- | ------------ | -------------------- | -------------------------------------------- |
+| `feature/*` | `develop`    | `develop`            | Building individual features or fixes.       |
+| `release/*` | `develop`    | `main` and `develop` | Final QA, version bumping, and release prep. |
+| `hotfix/*`  | `main`       | `main` and `develop` | Urgent fixes in production.                  |
 
 ## GitHub Actions
 

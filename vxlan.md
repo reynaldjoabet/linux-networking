@@ -105,19 +105,19 @@ Forwards traffic between VXLANs, or between VXLAN networks and traditional VLAN/
 
 ### Acronyms (RFC 7348)
 
-| Term           | Meaning                                                                    |
-| -------------- | -------------------------------------------------------------------------- |
-| PIM            | Protocol Independent Multicast                                             |
-| SPB            | Shortest Path Bridging                                                     |
-| STP            | Spanning Tree Protocol                                                     |
-| ToR            | Top of Rack                                                                |
-| TRILL          | Transparent Interconnection of Lots of Links                               |
-| VLAN           | Virtual Local Area Network                                                 |
-| VNI            | VXLAN Network Identifier (or VXLAN Segment ID)                             |
-| VTEP           | VXLAN Tunnel End Point — an entity that originates and/or terminates VXLAN tunnels |
-| VXLAN          | Virtual eXtensible Local Area Network                                      |
-| VXLAN Segment  | VXLAN layer 2 overlay network over which VMs communicate (= VXLAN overlay network); only VMs in the same segment can communicate |
-| VXLAN Gateway  | An entity that forwards traffic between VXLANs                             |
+| Term          | Meaning                                                                                                                          |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| PIM           | Protocol Independent Multicast                                                                                                   |
+| SPB           | Shortest Path Bridging                                                                                                           |
+| STP           | Spanning Tree Protocol                                                                                                           |
+| ToR           | Top of Rack                                                                                                                      |
+| TRILL         | Transparent Interconnection of Lots of Links                                                                                     |
+| VLAN          | Virtual Local Area Network                                                                                                       |
+| VNI           | VXLAN Network Identifier (or VXLAN Segment ID)                                                                                   |
+| VTEP          | VXLAN Tunnel End Point — an entity that originates and/or terminates VXLAN tunnels                                               |
+| VXLAN         | Virtual eXtensible Local Area Network                                                                                            |
+| VXLAN Segment | VXLAN layer 2 overlay network over which VMs communicate (= VXLAN overlay network); only VMs in the same segment can communicate |
+| VXLAN Gateway | An entity that forwards traffic between VXLANs                                                                                   |
 
 ## Frame format
 

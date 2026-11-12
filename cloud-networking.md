@@ -4,11 +4,11 @@ See also: [Azure](azure.md), [Fly.io](fly.md), [Build your own cloud provider](c
 
 ## Virtual networks
 
-| Provider      | Name                         |
-| ------------- | ---------------------------- |
-| AWS           | VPC (Virtual Private Cloud)  |
-| Azure         | VNet (Virtual Network)       |
-| Google Cloud  | VPC Network                  |
+| Provider     | Name                        |
+| ------------ | --------------------------- |
+| AWS          | VPC (Virtual Private Cloud) |
+| Azure        | VNet (Virtual Network)      |
+| Google Cloud | VPC Network                 |
 
 Building blocks:
 

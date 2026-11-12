@@ -12,10 +12,10 @@ Once in place, a TUN/TAP interface is used like any other interface: assign IP a
 
 Two types of virtual network interfaces are managed by `/dev/net/tun`:
 
-| Type  | Layer | Transports      | Flags / addressing                         | `tcpdump` link type |
-| ----- | ----- | --------------- | ------------------------------------------ | ------------------- |
-| `TUN` | L3    | IP packets      | `POINTOPOINT`, `NOARP`, `link/none`        | `RAW (Raw IP)`      |
-| `TAP` | L2    | Ethernet frames | `BROADCAST`, has a MAC (`link/ether`)      | `EN10MB (Ethernet)` |
+| Type  | Layer | Transports      | Flags / addressing                    | `tcpdump` link type |
+| ----- | ----- | --------------- | ------------------------------------- | ------------------- |
+| `TUN` | L3    | IP packets      | `POINTOPOINT`, `NOARP`, `link/none`   | `RAW (Raw IP)`      |
+| `TAP` | L2    | Ethernet frames | `BROADCAST`, has a MAC (`link/ether`) | `EN10MB (Ethernet)` |
 
 **TUN** (`IFF_TUN`, "network TUNnel") transports layer 3 PDUs:
 

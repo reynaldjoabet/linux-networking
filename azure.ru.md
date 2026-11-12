@@ -39,11 +39,11 @@ If your application tries to consume more RUs than you have provisioned in a giv
 
 Best practice for NoSQL databases is to keep JSON documents small — 100 KB, for example, is already large. With really large documents, the cost of writes is much higher.
 
-| Operation               | Approximate cost                                     |
-| ----------------------- | ---------------------------------------------------- |
-| 1 KB write              | ~5 RU                                                |
-| 100 KB write            | ~50–80 RU (depends on the number of indexed properties) |
-| 10 writes of 100 KB     | ~800 RU                                              |
+| Operation           | Approximate cost                                        |
+| ------------------- | ------------------------------------------------------- |
+| 1 KB write          | ~5 RU                                                   |
+| 100 KB write        | ~50–80 RU (depends on the number of indexed properties) |
+| 10 writes of 100 KB | ~800 RU                                                 |
 
 ## Why more indexes = more RU
 

@@ -46,10 +46,10 @@ An **autonomous system (AS)** is a network under one routing policy, identified 
 
 BGP is a **path-vector** protocol: every route carries the list of ASes it passed through (`AS_PATH`). That list provides both loop prevention (a router rejects a route containing its own ASN) and a coarse distance metric (fewer ASes is better).
 
-| Flavor   | Between                              | Typical use                                              |
-| -------- | ------------------------------------ | -------------------------------------------------------- |
-| **eBGP** | Routers in **different** ASes        | ISP peering, transit, cloud/on-prem links, data center leaf↔spine (each switch its own AS) |
-| **iBGP** | Routers in the **same** AS           | Distributing externally learned routes inside one network |
+| Flavor   | Between                       | Typical use                                                                                |
+| -------- | ----------------------------- | ------------------------------------------------------------------------------------------ |
+| **eBGP** | Routers in **different** ASes | ISP peering, transit, cloud/on-prem links, data center leaf↔spine (each switch its own AS) |
+| **iBGP** | Routers in the **same** AS    | Distributing externally learned routes inside one network                                  |
 
 Key behavioural differences:
 
@@ -70,14 +70,14 @@ Idle ──▶ Connect ──▶ OpenSent ──▶ OpenConfirm ──▶ Establ
           Active ◀────────────── (TCP failed) ◀──────┘──▶ Idle
 ```
 
-| State | Meaning |
-| --- | --- |
-| Idle | Not trying, or waiting before retrying |
-| Connect | TCP connection in progress |
-| Active | TCP failed; listening and retrying (a session stuck in *Active* usually means TCP can't connect) |
-| OpenSent | OPEN sent, waiting for the peer's OPEN |
-| OpenConfirm | OPENs exchanged, waiting for the first KEEPALIVE |
-| **Established** | Up: routes are exchanged |
+| State           | Meaning                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| Idle            | Not trying, or waiting before retrying                                                           |
+| Connect         | TCP connection in progress                                                                       |
+| Active          | TCP failed; listening and retrying (a session stuck in *Active* usually means TCP can't connect) |
+| OpenSent        | OPEN sent, waiting for the peer's OPEN                                                           |
+| OpenConfirm     | OPENs exchanged, waiting for the first KEEPALIVE                                                 |
+| **Established** | Up: routes are exchanged                                                                         |
 
 Timers: each side sends a **KEEPALIVE** every *keepalive* seconds; if nothing arrives within the **hold time**, the session is torn down and all its routes are withdrawn. Classic defaults are 60 / 180 s; data center profiles use 3 / 9 s, and **BFD** ([RFC 5880](https://www.rfc-editor.org/rfc/rfc5880)) detects failures in milliseconds.
 
@@ -94,13 +94,13 @@ Every message starts with a 19-byte header:
 +-------------------------------+---------------+
 ```
 
-| Type | Message | Purpose |
-| --- | --- | --- |
-| 1 | **OPEN** | Start a session: version (4), my ASN, hold time, BGP identifier (router ID, an IPv4-like 32-bit value), **capabilities** |
-| 2 | **UPDATE** | Withdraw routes and/or advertise routes with their path attributes |
-| 3 | **NOTIFICATION** | Report an error, then close the session |
-| 4 | **KEEPALIVE** | "Still here" (header only, 19 bytes) |
-| 5 | **ROUTE-REFRESH** | Ask the peer to resend its routes (after a policy change) |
+| Type | Message           | Purpose                                                                                                                  |
+| ---- | ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 1    | **OPEN**          | Start a session: version (4), my ASN, hold time, BGP identifier (router ID, an IPv4-like 32-bit value), **capabilities** |
+| 2    | **UPDATE**        | Withdraw routes and/or advertise routes with their path attributes                                                       |
+| 3    | **NOTIFICATION**  | Report an error, then close the session                                                                                  |
+| 4    | **KEEPALIVE**     | "Still here" (header only, 19 bytes)                                                                                     |
+| 5    | **ROUTE-REFRESH** | Ask the peer to resend its routes (after a policy change)                                                                |
 
 **Capabilities** negotiated in OPEN decide what the session can do. Important ones:
 
@@ -126,31 +126,31 @@ One UPDATE can advertise many prefixes that share the same attributes. IPv6 and 
 
 MP-BGP identifies what's being carried with an **AFI** (address family) and **SAFI** (subsequent family):
 
-| AFI/SAFI | Family | Used for |
-| --- | --- | --- |
-| 1/1 | IPv4 unicast | The internet, data centers |
-| 2/1 | IPv6 unicast | Same, for IPv6 |
-| 1/4 | IPv4 labeled unicast (BGP-LU) | MPLS label distribution |
-| 1/128 | VPNv4 | MPLS L3VPN |
-| 25/70 | L2VPN EVPN | EVPN-VXLAN, EVPN-MPLS |
-| 1/133 | IPv4 FlowSpec | Distributing filter rules (DDoS) |
+| AFI/SAFI | Family                        | Used for                         |
+| -------- | ----------------------------- | -------------------------------- |
+| 1/1      | IPv4 unicast                  | The internet, data centers       |
+| 2/1      | IPv6 unicast                  | Same, for IPv6                   |
+| 1/4      | IPv4 labeled unicast (BGP-LU) | MPLS label distribution          |
+| 1/128    | VPNv4                         | MPLS L3VPN                       |
+| 25/70    | L2VPN EVPN                    | EVPN-VXLAN, EVPN-MPLS            |
+| 1/133    | IPv4 FlowSpec                 | Distributing filter rules (DDoS) |
 
 ### Path attributes
 
-| Code | Attribute | Kind | Meaning |
-| --- | --- | --- | --- |
-| 1 | `ORIGIN` | well-known mandatory | How the route entered BGP: IGP, EGP, incomplete |
-| 2 | `AS_PATH` | well-known mandatory | ASes the route passed through |
-| 3 | `NEXT_HOP` | well-known mandatory | Address to forward to |
-| 4 | `MULTI_EXIT_DISC` (MED) | optional non-transitive | A neighbor's hint for which of its entry points to use |
-| 5 | `LOCAL_PREF` | well-known (iBGP only) | Preference inside your AS; higher wins |
-| 6 | `ATOMIC_AGGREGATE` | well-known discretionary | Route was summarised and lost detail |
-| 7 | `AGGREGATOR` | optional transitive | Who summarised it |
-| 8 | `COMMUNITIES` | optional transitive | Tags (`65000:100`) that policies match on |
-| 9, 10 | `ORIGINATOR_ID`, `CLUSTER_LIST` | optional non-transitive | Loop prevention for route reflectors |
-| 14, 15 | `MP_REACH_NLRI`, `MP_UNREACH_NLRI` | optional non-transitive | Multiprotocol advertise/withdraw |
-| 16 | Extended communities | optional transitive | Route targets for VPNs/EVPN, and more |
-| 32 | Large communities | optional transitive | 12-byte communities for 4-byte ASNs |
+| Code   | Attribute                          | Kind                     | Meaning                                                |
+| ------ | ---------------------------------- | ------------------------ | ------------------------------------------------------ |
+| 1      | `ORIGIN`                           | well-known mandatory     | How the route entered BGP: IGP, EGP, incomplete        |
+| 2      | `AS_PATH`                          | well-known mandatory     | ASes the route passed through                          |
+| 3      | `NEXT_HOP`                         | well-known mandatory     | Address to forward to                                  |
+| 4      | `MULTI_EXIT_DISC` (MED)            | optional non-transitive  | A neighbor's hint for which of its entry points to use |
+| 5      | `LOCAL_PREF`                       | well-known (iBGP only)   | Preference inside your AS; higher wins                 |
+| 6      | `ATOMIC_AGGREGATE`                 | well-known discretionary | Route was summarised and lost detail                   |
+| 7      | `AGGREGATOR`                       | optional transitive      | Who summarised it                                      |
+| 8      | `COMMUNITIES`                      | optional transitive      | Tags (`65000:100`) that policies match on              |
+| 9, 10  | `ORIGINATOR_ID`, `CLUSTER_LIST`    | optional non-transitive  | Loop prevention for route reflectors                   |
+| 14, 15 | `MP_REACH_NLRI`, `MP_UNREACH_NLRI` | optional non-transitive  | Multiprotocol advertise/withdraw                       |
+| 16     | Extended communities               | optional transitive      | Route targets for VPNs/EVPN, and more                  |
+| 32     | Large communities                  | optional transitive      | 12-byte communities for 4-byte ASNs                    |
 
 *Transitive* attributes are passed along even by routers that don't understand them; *non-transitive* ones are dropped at the next AS.
 
@@ -647,31 +647,31 @@ ip netns exec r1 ping -c1 -I 10.1.0.1 10.2.0.1  # traffic now follows the BGP ro
 
 ### Software you'll meet
 
-| Software   | Typical use                                                    | Kernel `proto` |
-| ---------- | -------------------------------------------------------------- | -------------- |
-| FRRouting  | General Linux routing suite (`bgpd` + `zebra`); SONiC, Cumulus, host routing | `bgp` (186) |
-| BIRD       | IXP route servers, Calico's per-node BGP daemon                | `bird` (12) |
-| GoBGP      | Programmable BGP in Go; MetalLB, Cilium                        | usually doesn't install routes itself |
-| ExaBGP     | Scriptable announcer for VIPs, health-checked anycast, FlowSpec | doesn't install routes |
-| OpenBGPD   | OpenBSD's BGP daemon                                           | — |
+| Software  | Typical use                                                                  | Kernel `proto`                        |
+| --------- | ---------------------------------------------------------------------------- | ------------------------------------- |
+| FRRouting | General Linux routing suite (`bgpd` + `zebra`); SONiC, Cumulus, host routing | `bgp` (186)                           |
+| BIRD      | IXP route servers, Calico's per-node BGP daemon                              | `bird` (12)                           |
+| GoBGP     | Programmable BGP in Go; MetalLB, Cilium                                      | usually doesn't install routes itself |
+| ExaBGP    | Scriptable announcer for VIPs, health-checked anycast, FlowSpec              | doesn't install routes                |
+| OpenBGPD  | OpenBSD's BGP daemon                                                         | —                                     |
 
 ## Kernel source map
 
-| Topic | Where (Linux 6.19-rc8) |
-| --- | --- |
-| `RTPROT_BGP`, `struct rtmsg`, route types, offload flags | `include/uapi/linux/rtnetlink.h:244`, `:259`, `:312`, `:346` |
-| Netlink route add → FIB | `net/ipv4/fib_frontend.c:910` (`inet_rtm_newroute`), `:1695` (registration) |
-| Route change notifications | `net/ipv4/fib_semantics.c:543` (`rtmsg_fib`) |
-| Longest-prefix-match lookup | `net/ipv4/fib_trie.c:1420` (`fib_table_lookup`), `Documentation/networking/fib_trie.rst` |
-| ECMP selection and hashing | `net/ipv4/fib_semantics.c:2165`, `:2209`; `net/ipv4/route.c:2066`; `ip-sysctl.rst:102` |
-| Nexthop objects, resilient groups | `net/ipv4/nexthop.c`; `Documentation/networking/nexthop-group-resilient.rst` |
-| TCP-MD5 / TCP-AO | `include/uapi/linux/tcp.h:369`, `:396`; `Documentation/networking/tcp_ao.rst` |
-| GTSM (`IP_MINTTL`) | `include/uapi/linux/in.h:128`; `net/ipv4/ip_sockglue.c:1033`; `net/ipv4/tcp_ipv4.c:2283` |
-| Counters | `net/ipv4/proc.c:239` (MD5), `:247` (MinTTL), `:303` (AO) |
-| VRF | `drivers/net/vrf.c`; `Documentation/networking/vrf.rst` |
-| MPLS | `net/mpls/af_mpls.c`; `Documentation/networking/mpls-sysctl.rst` |
-| Hardware BGP traps | `include/net/devlink.h:1158`; `net/devlink/trap.c:1004`; `drivers/net/ethernet/mellanox/mlxsw/spectrum_trap.c:1025` |
-| Selftests to read | `tools/testing/selftests/net/fib_nexthops.sh`, `tools/testing/selftests/net/tcp_ao/`, `vrf_route_leaking.sh` |
+| Topic                                                    | Where (Linux 6.19-rc8)                                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `RTPROT_BGP`, `struct rtmsg`, route types, offload flags | `include/uapi/linux/rtnetlink.h:244`, `:259`, `:312`, `:346`                                                        |
+| Netlink route add → FIB                                  | `net/ipv4/fib_frontend.c:910` (`inet_rtm_newroute`), `:1695` (registration)                                         |
+| Route change notifications                               | `net/ipv4/fib_semantics.c:543` (`rtmsg_fib`)                                                                        |
+| Longest-prefix-match lookup                              | `net/ipv4/fib_trie.c:1420` (`fib_table_lookup`), `Documentation/networking/fib_trie.rst`                            |
+| ECMP selection and hashing                               | `net/ipv4/fib_semantics.c:2165`, `:2209`; `net/ipv4/route.c:2066`; `ip-sysctl.rst:102`                              |
+| Nexthop objects, resilient groups                        | `net/ipv4/nexthop.c`; `Documentation/networking/nexthop-group-resilient.rst`                                        |
+| TCP-MD5 / TCP-AO                                         | `include/uapi/linux/tcp.h:369`, `:396`; `Documentation/networking/tcp_ao.rst`                                       |
+| GTSM (`IP_MINTTL`)                                       | `include/uapi/linux/in.h:128`; `net/ipv4/ip_sockglue.c:1033`; `net/ipv4/tcp_ipv4.c:2283`                            |
+| Counters                                                 | `net/ipv4/proc.c:239` (MD5), `:247` (MinTTL), `:303` (AO)                                                           |
+| VRF                                                      | `drivers/net/vrf.c`; `Documentation/networking/vrf.rst`                                                             |
+| MPLS                                                     | `net/mpls/af_mpls.c`; `Documentation/networking/mpls-sysctl.rst`                                                    |
+| Hardware BGP traps                                       | `include/net/devlink.h:1158`; `net/devlink/trap.c:1004`; `drivers/net/ethernet/mellanox/mlxsw/spectrum_trap.c:1025` |
+| Selftests to read                                        | `tools/testing/selftests/net/fib_nexthops.sh`, `tools/testing/selftests/net/tcp_ao/`, `vrf_route_leaking.sh`        |
 
 ## Further reading
 

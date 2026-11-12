@@ -83,14 +83,14 @@ Each site sees its own subnet as local (directly connected) and the other site's
 
 ## Common tunneling protocols
 
-| Protocol                             | What it encapsulates | Used in                          |
-| ------------------------------------ | -------------------- | -------------------------------- |
-| GRE (Generic Routing Encapsulation)  | IP, Ethernet         | VPNs, MPLS, cloud networking     |
-| IP-in-IP                             | IP                   | Simple IP tunnels                |
-| L2TP                                 | PPP (layer 2)        | VPNs (often with IPsec)          |
-| VXLAN                                | Ethernet             | Data center, cloud/virtual networking |
-| OpenVPN                              | IP over TLS          | Secure VPN                       |
-| WireGuard                            | IP over UDP          | Modern secure VPN — see [WireGuard](wireguard.md) |
+| Protocol                            | What it encapsulates | Used in                                           |
+| ----------------------------------- | -------------------- | ------------------------------------------------- |
+| GRE (Generic Routing Encapsulation) | IP, Ethernet         | VPNs, MPLS, cloud networking                      |
+| IP-in-IP                            | IP                   | Simple IP tunnels                                 |
+| L2TP                                | PPP (layer 2)        | VPNs (often with IPsec)                           |
+| VXLAN                               | Ethernet             | Data center, cloud/virtual networking             |
+| OpenVPN                             | IP over TLS          | Secure VPN                                        |
+| WireGuard                           | IP over UDP          | Modern secure VPN — see [WireGuard](wireguard.md) |
 
 ## Point-to-point links and `/31`
 
@@ -370,11 +370,11 @@ default via 10.10.10.1 dev eth1 metric 100
 
 Reading `192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.10` — the subnet `192.168.1.0/24` is directly reachable via `eth0`, and your IP on that network is `192.168.1.10`:
 
-| Field              | Meaning                                                          |
-| ------------------ | ---------------------------------------------------------------- |
-| `proto kernel`     | Route was added automatically by the kernel (not manually).      |
+| Field              | Meaning                                                           |
+| ------------------ | ----------------------------------------------------------------- |
+| `proto kernel`     | Route was added automatically by the kernel (not manually).       |
 | `scope link`       | These IPs are reachable directly on the link (no gateway needed). |
-| `src 192.168.1.10` | Source IP to use when sending traffic on this subnet.            |
+| `src 192.168.1.10` | Source IP to use when sending traffic on this subnet.             |
 
 ## Further reading
 

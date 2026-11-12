@@ -104,10 +104,10 @@ Endpoint = vpn.example.com:51820
 
 The endpoint is **not** the tunnel IP:
 
-| Address                       | Lives                                   | Used for                                   | Example                                                   |
-| ----------------------------- | --------------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
-| Endpoint (underlay)           | Outside the tunnel, public internet side | Routing UDP packets between peers          | `203.0.113.10:51000`                                      |
-| Tunnel IP (overlay)           | Inside the tunnel (`10.x.x.x`)          | Internal traffic once connected            | `10.10.11.1/24` on the router, `10.10.11.2/24` on the laptop |
+| Address             | Lives                                    | Used for                          | Example                                                      |
+| ------------------- | ---------------------------------------- | --------------------------------- | ------------------------------------------------------------ |
+| Endpoint (underlay) | Outside the tunnel, public internet side | Routing UDP packets between peers | `203.0.113.10:51000`                                         |
+| Tunnel IP (overlay) | Inside the tunnel (`10.x.x.x`)           | Internal traffic once connected   | `10.10.11.1/24` on the router, `10.10.11.2/24` on the laptop |
 
 WireGuard uses the Endpoint only to send UDP packets to the peer's real-world address. The tunnel IPs are used only after the packet is decrypted inside the VPN.
 

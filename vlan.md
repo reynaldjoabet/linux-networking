@@ -97,13 +97,13 @@ Domains:
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Field | Size    | Meaning                                         |
-| ----- | ------- | ----------------------------------------------- |
+| Field | Size    | Meaning                                              |
+| ----- | ------- | ---------------------------------------------------- |
 | TPID  | 2 bytes | Tag Protocol Identifier — always `0x8100` for 802.1Q |
-| TCI   | 2 bytes | Tag Control Information: PCP + DEI + VID        |
-| PCP   | 3 bits  | Priority (0–7) for QoS                          |
-| DEI   | 1 bit   | Drop Eligible Indicator                         |
-| VID   | 12 bits | VLAN ID (0–4095; usable 1–4094)                 |
+| TCI   | 2 bytes | Tag Control Information: PCP + DEI + VID             |
+| PCP   | 3 bits  | Priority (0–7) for QoS                               |
+| DEI   | 1 bit   | Drop Eligible Indicator                              |
+| VID   | 12 bits | VLAN ID (0–4095; usable 1–4094)                      |
 
 Frame fields (see [Ethernet](ethernet.md) for the full layout):
 
@@ -133,10 +133,10 @@ Reference: [VLANs and Trunking (Packet Guide to Core Network Protocols)](https:/
 │       │                                        tagged    │                  │
 │       │ untagged                               frames    │                  │
 │       ▼                                                  ▼                  │
-│   ┌────────┐                              ┌─────────────────────┐           │
-│   │ Switch │                              │ VLAN 10 │ VLAN 20  │            │
-│   │ Port 1 │                              │  tag    │   tag    │            │
-│   │VLAN 10 │                              └─────────────────────┘           │
+│   ┌────────┐                              ┌─────────┬───────────┐           │
+│   │ Switch │                              │ VLAN 10 │ VLAN 20   │           │
+│   │ Port 1 │                              │  tag    │   tag     │           │
+│   │VLAN 10 │                              └─────────┴───────────┘           │
 │   └────────┘                                                                │
 │                                                                             │
 │   Switch adds tag                    Tags preserved between                 │
@@ -274,12 +274,12 @@ Routing **between** VLANs is done by creating a VLAN device on top of the bridge
 
 ### Concepts
 
-| Term                  | Meaning                                                                                                                       |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Tagged / untagged** | A tagged port always sets a VLAN tag on egress; an untagged port always removes it on egress (packets leave toward the outside stripped of tags). |
-| **VLAN ID**           | Checked on egress: if the packet's VID isn't in the bridge VLAN table for the egress port, it's dropped before being sent.     |
+| Term                  | Meaning                                                                                                                                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tagged / untagged** | A tagged port always sets a VLAN tag on egress; an untagged port always removes it on egress (packets leave toward the outside stripped of tags).                                                                                             |
+| **VLAN ID**           | Checked on egress: if the packet's VID isn't in the bridge VLAN table for the egress port, it's dropped before being sent.                                                                                                                    |
 | **PVID**              | Port VLAN ID: tags all **untagged** ingress traffic on (access) ports with this VID. A dynamic entry is added to the bridge VLAN table and the port is added as untagged. PVID has no effect on already-tagged packets — they keep their tag. |
-| **Port-based VLANs**  | Packets get a VLAN tag based on the bridge port the device is connected to (i.e. via PVID).                                   |
+| **Port-based VLANs**  | Packets get a VLAN tag based on the bridge port the device is connected to (i.e. via PVID).                                                                                                                                                   |
 
 The following are bridge-port properties as named in MikroTik RouterOS:
 
@@ -590,20 +590,20 @@ br0 (bridge)
 ```
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│   VLAN Interface (802.1Q)          Bridge Port VLAN Config      │
-│   ────────────────────────         ────────────────────────     │
-│                                                                 │
-│   eth0                             br0                          │
-│    │                                │                           │
-│    ├── eth0.10 (VID 10) ◄─ DEVICE   ├── eth0 [vid 10,20]  ◄─ CONFIG
-│    ├── eth0.20 (VID 20) ◄─ DEVICE   ├── eth1 [vid 10]     ◄─ CONFIG
-│    └── eth0.30 (VID 30) ◄─ DEVICE   └── eth2 [vid 20]     ◄─ CONFIG
-│                                                                 │
-│   Can assign IP to each            Cannot assign IP to VIDs    │
-│                                    (only to br0 itself)         │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   VLAN Interface (802.1Q)          Bridge Port VLAN Config          │
+│   ────────────────────────         ────────────────────────         │
+│                                                                     │
+│   eth0                             br0                              │
+│    │                                │                               │
+│    ├── eth0.10 (VID 10) ◄─ DEVICE   ├── eth0 [vid 10,20]  ◄─ CONFIG │
+│    ├── eth0.20 (VID 20) ◄─ DEVICE   ├── eth1 [vid 10]     ◄─ CONFIG │
+│    └── eth0.30 (VID 30) ◄─ DEVICE   └── eth2 [vid 20]     ◄─ CONFIG │
+│                                                                     │
+│   Can assign IP to each            Cannot assign IP to VIDs         │
+│                                    (only to br0 itself)             │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 A VLAN interface **can** be a bridge port:
