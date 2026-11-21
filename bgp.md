@@ -18,17 +18,17 @@ See also: [Anycast and ASNs](bgp-anycast.md), [routing](routing.md), [Kubernetes
                  │
                  │  TCP port 179: OPEN / UPDATE / KEEPALIVE / NOTIFICATION
                  ▼
-┌──────────────────────────── userspace ────────────────────────────┐
-│  BGP daemon (FRR bgpd, BIRD, GoBGP)                                │
-│                                                                    │
-│   Adj-RIB-In ──import policy──▶ Loc-RIB ──export policy──▶ Adj-RIB-Out
-│   (routes per peer)            (best path per prefix)   (what we advertise)
-│                                    │                               │
-│                                    │ install best routes           │
-└────────────────────────────────────┼───────────────────────────────┘
+┌──────────────────────────── userspace ──────────────────────────────────────┐
+│  BGP daemon (FRR bgpd, BIRD, GoBGP)                                         │
+│                                                                             │
+│   Adj-RIB-In ──import policy──▶ Loc-RIB ──export policy──▶ Adj-RIB-Out      │
+│   (routes per peer)            (best path per prefix)   (what we advertise) │
+│                                    │                                        │
+│                                    │ install best routes                    │
+└────────────────────────────────────┼────────────────────────────────────────┘
                                      │ netlink: RTM_NEWROUTE, rtm_protocol = RTPROT_BGP (186)
-┌────────────────────────────────────▼──────────────── kernel ──────┐
-│  FIB (fib_trie)  ──longest prefix match──▶  ip_forward() ──▶ out  │
+┌────────────────────────────────────▼──────────────── kernel ───────┐
+│  FIB (fib_trie)  ──longest prefix match──▶  ip_forward() ──▶ out   │
 │  nexthop objects, ECMP hashing, VRFs, MPLS                         │
 └────────────────────────────────────────────────────────────────────┘
 ```
@@ -88,7 +88,7 @@ Every message starts with a 19-byte header:
 ```text
  0                   1                   2                   3
 +---------------------------------------------------------------+
-|                    Marker (16 bytes, all 0xff)                 |
+|                  Marker (16 bytes, all 0xff)                  |
 +-------------------------------+---------------+---------------+
 |          Length (2)           |   Type (1)    |
 +-------------------------------+---------------+
